@@ -5,6 +5,7 @@ https://austinmorlan.com/posts/chip8_emulator/
 
 ---
 #### TODO:
-- Finish Platform
-- Implement Logging
-- Optimize
+- Implement spdlog
+- Implement SuperChip-8
+- Implement Chip-8X
+- Implement Chip-8E
