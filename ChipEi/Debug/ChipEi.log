@@ -1,0 +1,3 @@
+﻿  main.cpp
+F:\Git Repos\chipei\ChipEi\main.cpp(44): warning C4715: 'SDL_main': not all control paths return a value
+  ChipEi.vcxproj -> F:\Git Repos\chipei\Debug\ChipEi.exe

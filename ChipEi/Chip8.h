@@ -2,25 +2,38 @@
 #include <cstdint>
 #include <fstream>
 #include <chrono>
+#include <iostream>
 #include <random>
+
+namespace cst {
+	const unsigned int FONTSET_SIZE = 240; // Fontset Size
+	const unsigned int START_ADDRESS = 0x200; // PC Start Address
+	const unsigned int FONTSET_START_ADDRESS = 0x50; // Fontset Start Address
+	const unsigned int VIDEO_WIDTH = 64;
+	const unsigned int VIDEO_HEIGHT = 32;
+	const unsigned int EXTENDED_VIDEO_WIDTH = 128;
+	const unsigned int EXTENDED_VIDEO_HEIGHT = 64;
+	const unsigned int MEMORY_SIZE = 4096;
+	const unsigned int REGISTER_COUNT = 16;
+	const unsigned int USER_RESISTER_COUNT = 8;
+	const unsigned int STACK_LEVELS = 16;
+	const unsigned int KEY_COUNT = 16;
+	const unsigned int SPRITE_SIZE = 8;
+	const uint8_t VF = 0xF;
+	const uint8_t V0 = 0;
+}
 
 class Chip8 {
 public:
-	Chip8();
+	Chip8(bool load_flag=false, bool shift_flag=false);
 	void LoadROM(char const* filename);
 	void Cycle();
+	bool isRomLoaded();
+	bool shouldClose();
 
-	uint8_t registers[16]{}; // 16 8-bit Registers
-	uint8_t memory[4096]{}; // 4K Bytes of Memory
-	uint16_t index{}; // 16-bit Index Register
-	uint16_t pc{}; // 16-bit Program Counter
-	uint16_t stack[16]{}; // 16-level Stack
-	uint8_t sp{}; // 8-bit Stack Pointer
-	uint8_t delayTimer{}; // 8-bit Delay Timer
-	uint8_t soundTimer{}; // 8-bit Sound Timer
-	uint8_t keypad[16]{}; // 16 Input Keys
-	uint32_t video[64 * 32]{}; // 64x32 Monochrome Display Memory
-	uint16_t opcode; // Current Opcode
+	uint8_t keypad[cst::KEY_COUNT]{}; // 16 Input Keys
+	uint32_t *current_video;
+	uint8_t current_video_width = cst::VIDEO_WIDTH;
 private:
 	void SetupFunctionPointerTable();
 
@@ -37,8 +50,10 @@ private:
 	Chip8Func tableE[0xE + 1]{&Chip8::OP_NULL};
 	Chip8Func tableF[0x65 + 1]{&Chip8::OP_NULL};
 
+	// Chip-8 Instructions
 	void OP_00E0();
 	void OP_00EE();
+	void OP_00FA();
 	void OP_1nnn();
 	void OP_2nnn();
 	void OP_3xkk();
@@ -72,17 +87,59 @@ private:
 	void OP_Fx55();
 	void OP_Fx65();
 
-	std::default_random_engine randGen;
-	std::uniform_int_distribution<uint8_t> randByte;
-};
+	// Super Chip-8 Instructions
+	void OP_00Bn();
+	void OP_00Cn();
+	void OP_00FB();
+	void OP_00FC();
+	void OP_00FD();
+	void OP_00FE();
+	void OP_00FF();
+	void OP_Dxy0();
+	void OP_Fx30();
+	void OP_Fx75();
+	void OP_Fx85();
 
-namespace cst {
-	const unsigned int FONTSET_SIZE = 80; // Fontset Size
-	const unsigned int START_ADDRESS = 0x200; // PC Start Address
-	const unsigned int FONTSET_START_ADDRESS = 0x50; // Fontset Start Address
-	const unsigned int VIDEO_WIDTH = 64;
-	const unsigned int VIDEO_HEIGHT = 32;
-	const unsigned int SPRITE_SIZE = 8;
-	const uint8_t VF = 0xF;
-	const uint8_t V0 = 0;
-}
+	// Chip-8X Instructions
+	void OP_02A0();
+	void OP_5xy1();
+	void OP_Bxy0();
+	void OP_Bxyn();
+	void OP_ExF2();
+	void OP_ExF5();
+	void OP_FxFB();
+	void OP_FxF8();
+
+	// Chip-8E Instructions
+	void OP_5xy1_E();
+	void OP_5xy2();
+	void OP_5xy3();
+	void OP_9xy1();
+	void OP_9xy2();
+	void OP_9xy3();
+	void OP_Fx75_E();
+	void OP_Fx94();
+
+	uint8_t registers[cst::REGISTER_COUNT]{}; // 16 8-bit Registers
+	uint8_t userRegisters[cst::USER_RESISTER_COUNT]{}; // 8 8-bit HP-RPL User Flags
+	uint8_t memory[cst::MEMORY_SIZE]{}; // 4K Bytes of Memory
+	uint16_t index{}; // 16-bit Index Register
+	uint16_t pc{}; // 16-bit Program Counter
+	uint16_t stack[cst::STACK_LEVELS]{}; // 16-level Stack
+	uint8_t sp{}; // 8-bit Stack Pointer
+	uint8_t delayTimer{}; // 8-bit Delay Timer
+	uint8_t soundTimer{}; // 8-bit Sound Timer
+	uint16_t opcode; // Current Opcode
+	uint32_t video[cst::VIDEO_WIDTH * cst::VIDEO_HEIGHT]{}; // 64x32 Monochrome Display Memory
+	uint32_t video_ext[cst::EXTENDED_VIDEO_WIDTH * cst::EXTENDED_VIDEO_HEIGHT]{}; // 128x64 Momochrome Display Memory
+	
+	bool _isRomLoaded = false;
+	uint8_t current_video_height = cst::VIDEO_HEIGHT;
+
+	bool LOAD_FLAG;
+	bool SHIFT_FLAG;
+	bool quit;
+
+	std::default_random_engine randGen;
+	std::uniform_int_distribution<unsigned short int> randByte;
+};

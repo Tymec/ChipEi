@@ -16,12 +16,31 @@ uint8_t fontset[cst::FONTSET_SIZE] = {
 	0xF0, 0x80, 0x80, 0x80, 0xF0, // C
 	0xE0, 0x90, 0x90, 0x90, 0xE0, // D
 	0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-	0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+	0xF0, 0x80, 0xF0, 0x80, 0x80,  // F
+
+	// high-res mode font sprites (0-9)
+    0x3C, 0x7E, 0xE7, 0xC3, 0xC3, 0xC3, 0xC3, 0xE7, 0x7E, 0x3C, 
+    0x18, 0x38, 0x58, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x3C,
+    0x3E, 0x7F, 0xC3, 0x06, 0x0C, 0x18, 0x30, 0x60, 0xFF, 0xFF,
+    0x3C, 0x7E, 0xC3, 0x03, 0x0E, 0x0E, 0x03, 0xC3, 0x7E, 0x3C,
+    0x06, 0x0E, 0x1E, 0x36, 0x66, 0xC6, 0xFF, 0xFF, 0x06, 0x06,
+    0xFF, 0xFF, 0xC0, 0xC0, 0xFC, 0xFE, 0x03, 0xC3, 0x7E, 0x3C,
+    0x3E, 0x7C, 0xC0, 0xC0, 0xFC, 0xFE, 0xC3, 0xC3, 0x7E, 0x3C,
+    0xFF, 0xFF, 0x03, 0x06, 0x0C, 0x18, 0x30, 0x60, 0x60, 0x60,
+    0x3C, 0x7E, 0xC3, 0xC3, 0x7E, 0x7E, 0xC3, 0xC3, 0x7E, 0x3C,
+    0x3C, 0x7E, 0xC3, 0xC3, 0x7F, 0x3F, 0x03, 0x03, 0x3E, 0x7C
 };
 
-Chip8::Chip8() : randGen(std::chrono::system_clock::now().time_since_epoch().count()) {
+Chip8::Chip8(bool load_flag, bool shift_flag) : randGen(std::chrono::system_clock::now().time_since_epoch().count()) {
 	// Set PC to start address
 	pc = cst::START_ADDRESS;
+
+	// Set current display video memory
+	current_video = video;
+
+	// Set load and shit flags
+	LOAD_FLAG = load_flag;
+	SHIFT_FLAG = shift_flag;
 
 	// Load fonts into memory
 	for (unsigned int i = 0; i < cst::FONTSET_SIZE; ++i) {
@@ -29,7 +48,7 @@ Chip8::Chip8() : randGen(std::chrono::system_clock::now().time_since_epoch().cou
 	}
 
 	// Initialize RNG
-	randByte = std::uniform_int_distribution<uint8_t>(0, 255U);
+	randByte = std::uniform_int_distribution<unsigned short int>(0, 255);
 
 	// Set up function pointer table
 	SetupFunctionPointerTable();
@@ -38,7 +57,7 @@ Chip8::Chip8() : randGen(std::chrono::system_clock::now().time_since_epoch().cou
 // Load the ROM file into memory.
 void Chip8::LoadROM(char const* filename) {
 	// Open the file as binary and put cursor at the end
-	std::ifstream file(filename, std::ios::binary || std::ios::ate);
+	std::ifstream file(filename, std::ios::binary | std::ios::ate);
 
 	if (file.is_open()) {
 		// Get size of the file and allocate buffer with size
@@ -57,7 +76,11 @@ void Chip8::LoadROM(char const* filename) {
 
 		// Clear the buffer
 		delete[] buffer;
+
+		_isRomLoaded = true;
+		return;
 	}
+	std::cout << "File failed to open." << std::endl;
 }
 
 // Cycle: Fetch, Decode, Execute
@@ -69,6 +92,7 @@ void Chip8::Cycle() {
 	pc += 2;
 
 	// Decode and Execute
+	std::cout << "Opcode: " << std::hex << opcode << std::endl;
 	((*this).*(table[(opcode & 0xF000u) >> 12u]))();
 
 	// Decrement delay timer if it's been set
@@ -79,6 +103,12 @@ void Chip8::Cycle() {
 	if (soundTimer > 0)
 		--soundTimer;
 }
+
+// Check if ROM is loaded
+bool Chip8::isRomLoaded() { return _isRomLoaded; }
+
+// Check if interpreter should close
+bool Chip8::shouldClose() { return quit; }
 
 // Set up function pointer table
 void Chip8::SetupFunctionPointerTable() {
@@ -148,13 +178,15 @@ void Chip8::TableF() {
 
 // Opcodes that are incorrect
 void Chip8::OP_NULL() {
-	// Implement logging
+	std::cout << "Incorrect Opcode" << std::endl;
+	// Implement logger
 }
 
 // CLS: Clear the display.
+//
 void Chip8::OP_00E0() {
-	std::fill_n(video, sizeof(video), 0);
-	//memset(video, 0, sizeof(video));
+	//std::fill_n(current_video, sizeof(current_video), 0);
+	memset(current_video, 0, sizeof(current_video));
 }
 
 // RET: Return from a subroutine.
@@ -162,6 +194,12 @@ void Chip8::OP_00E0() {
 void Chip8::OP_00EE() {
 	--sp;
 	pc = stack[sp];
+}
+
+// COMPAT: Non-standard. Toggles changing of the I register by save (FX55) and restore (FX65) opcodes.
+//
+void Chip8::OP_00FA() {
+	LOAD_FLAG = !LOAD_FLAG;
 }
 
 // JP addr: Jump to location nnn.
@@ -370,8 +408,8 @@ void Chip8::OP_Dxyn() {
 	uint8_t height = opcode & 0x000Fu;
 
 	// Wrap if going beyond screen bounds
-	uint8_t xPos = registers[Vx] % cst::VIDEO_WIDTH;
-	uint8_t yPos = registers[Vy] % cst::VIDEO_HEIGHT;
+	uint8_t xPos = registers[Vx] % current_video_width;
+	uint8_t yPos = registers[Vy] % current_video_height;
 
 	// Reset VF
 	registers[cst::VF] = 0;
@@ -382,7 +420,7 @@ void Chip8::OP_Dxyn() {
 
 		for (unsigned int col = 0; col < cst::SPRITE_SIZE; ++col) {
 			uint8_t spritePixel = spriteByte & (0x80u >> col);
-			uint32_t* screenPixel = &video[(yPos + row) * cst::VIDEO_WIDTH + (xPos + col)];
+			uint32_t* screenPixel = &current_video[(yPos + row) * current_video_width + (xPos + col)];
 
 			// If sprite pixel is on
 			if (spritePixel) {
@@ -549,7 +587,6 @@ void Chip8::OP_Fx33() {
 
 	uint8_t value = registers[Vx];
 
-	/*
 	// Ones-place
 	memory[index + 2] = value % 10;
 	value /= 10;
@@ -560,24 +597,17 @@ void Chip8::OP_Fx33() {
 
 	// Hundreds-place
 	memory[index] = value % 10;
-	*/
-
-	// Ones-place
-	memory[index + 2] = value % 10;
-	// Tens-place
-	memory[index + 1] = (value / 10) % 10;
-	// Hundreds-place
-	memory[index] = value / 100;
-
 }
 
 // LD [I], Vx: Store registers V0 through Vx in memory starting at location I.
 // The interpreter copies the values of registers V0 through Vx into memory, starting at the address in I.
 void Chip8::OP_Fx55() {
 	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
-
 	for (uint8_t i = 0; i <= Vx; ++i) {
 		memory[index + i] = registers[i];
+	}
+	if (LOAD_FLAG) {
+		this->index = Vx + 1;
 	}
 }
 
@@ -589,4 +619,257 @@ void Chip8::OP_Fx65() {
 	for (uint8_t i = 0; i <= Vx; ++i) {
 		registers[i] = memory[index + i];
 	}
+
+	if (LOAD_FLAG) {
+		this->index = Vx + 1;
+	}
+}
+
+// SCU N: Scroll display N lines up.
+//
+void Chip8::OP_00Bn() {
+	uint8_t lines = opcode & 0x000Fu;
+}
+
+// SCD N: Scroll display N lines down.
+//
+void Chip8::OP_00Cn() {
+	uint8_t lines = opcode & 0x000Fu;
+}
+
+// SCR: Scroll display 4 pixels to the right.
+//
+void Chip8::OP_00FB() {
+}
+
+// SCL: Scroll display 4 pixels to the left.
+//
+void Chip8::OP_00FC() {
+}
+
+// EXIT: Exit the interpreter.
+//
+void Chip8::OP_00FD() {
+	quit = true;
+}
+
+// LOW: Enable low res (64x32) mode.
+//
+void Chip8::OP_00FE() {
+	current_video = video;
+	current_video_width = cst::VIDEO_WIDTH;
+	current_video_height = cst::VIDEO_HEIGHT;
+}
+
+// HIGH: Enable high res (128x64) mode.
+//
+void Chip8::OP_00FF() {
+	current_video = video_ext;
+	current_video_width = cst::EXTENDED_VIDEO_WIDTH;
+	current_video_height = cst::EXTENDED_VIDEO_HEIGHT;
+}
+
+// DRW VX, VX, 0: When in high res mode show a 16x16 sprite at (VX, VY).
+//
+void Chip8::OP_Dxy0() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+	uint8_t Vy = (opcode & 0x00F0u) >> 4u;
+
+	// Wrap if going beyond screen bounds
+	uint8_t xPos = registers[Vx] % current_video_width;
+	uint8_t yPos = registers[Vy] % current_video_height;
+
+	// Reset VF
+	registers[cst::VF] = 0;
+
+	uint8_t sprite_size = cst::SPRITE_SIZE * 2;
+
+	// Loop over each row and column of the sprite
+	for (unsigned int row = 0; row < sprite_size; ++row) {
+		uint8_t spriteByte = memory[index + row];
+
+		for (unsigned int col = 0; col < sprite_size; ++col) {
+			uint8_t spritePixel = spriteByte & (0x80u >> col);
+			uint32_t* screenPixel = &current_video[(yPos + row) * current_video_width + (xPos + col)];
+
+			// If sprite pixel is on
+			if (spritePixel) {
+				// Collision
+				if (*screenPixel == 0xFFFFFFFF) {
+					registers[cst::VF] = 1;
+				}
+
+				*screenPixel ^= 0xFFFFFFFF;
+			}
+		}
+	}
+}
+
+// LD I, FONT(VX): Set I to the address of the SCHIP-8 16x10 font sprite representing the value in VX.
+//
+void Chip8::OP_Fx30() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+
+	uint8_t digit = registers[Vx];
+	index = cst::FONTSET_START_ADDRESS + (10 * digit);
+}
+
+// LD R, VX: Store V0 through VX to HP-48 RPL user flags (X <= 7).
+//
+void Chip8::OP_Fx75() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+
+	for (uint8_t i = 0; i <= Vx; ++i) {
+		userRegisters[index + i] = registers[i];
+	}
+}
+
+// LD VX, R: Read V0 through VX to HP-48 RPL user flags (X <= 7)
+//
+void Chip8::OP_Fx85() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+
+	for (uint8_t i = 0; i <= Vx; ++i) {
+		registers[i] = userRegisters[index + i];
+	}
+}
+
+// STEPCOL: Steps background 1 color (-> blue -> black -> green -> red ->)
+//
+void Chip8::OP_02A0() {
+}
+
+// ADD VX, VY: Let VX = VX + VY (hex digits 00 to 77) 
+// (useful for manipulating the NH, NV parameters for low resolution color.)
+void Chip8::OP_5xy1() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+	uint8_t Vy = (opcode & 0x00F0u) >> 4u;
+}
+
+// COL VX, VY: Set VY color at VX(NH), VX+1(NV) 
+// (provides low resolution color 8x8.)
+void Chip8::OP_Bxy0() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+	uint8_t Vy = (opcode & 0x00F0u) >> 4u;
+}
+
+// COL VX, VY, N: N != 0, set VY color at VX, VX+1 byte N bytes vertically 
+// (provides high resolution 8x32.)
+void Chip8::OP_Bxyn() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+	uint8_t Vy = (opcode & 0x00F0u) >> 4u;
+	uint8_t Vn = opcode & 0x000Fu;
+}
+
+// SKP2 VX: Skip the following instruction if the key represented by the value in VX is pressed on hex keyboard 2.
+//
+void Chip8::OP_ExF2() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+}
+
+// SKNP2 VX: Skip the following instruction if the key represented by the value in VX is not pressed on hex keyboard 2.
+//
+void Chip8::OP_ExF5() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+}
+
+// IN VX: Copy contents from input port to VX. (Waits for EF4=1)
+//
+void Chip8::OP_FxFB() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+}
+
+// OUT VX: Output contents of VX to output port. Used to program simple sound.
+//
+void Chip8::OP_FxF8() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+}
+
+// SGT VX, VY: Skip the next instruction if register VX is greater than VY.
+//
+void Chip8::OP_5xy1_E() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+	uint8_t Vy = (opcode & 0x00F0u) >> 4u;
+
+	if (registers[Vx] > registers[Vy])
+		pc += 2;
+}
+
+// SLT VX, VY: Skip the next instruction if register VX is less than VY.
+//
+void Chip8::OP_5xy2() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+	uint8_t Vy = (opcode & 0x00F0u) >> 4u;
+
+	if (registers[Vx] < registers[Vy])
+		pc += 2;
+}
+
+// SNE VX, VY: Skip the next instruction if register VX does not equal VY.
+//
+void Chip8::OP_5xy3() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+	uint8_t Vy = (opcode & 0x00F0u) >> 4u;
+
+	if (registers[Vx] != registers[Vy])
+		pc += 2;
+}
+
+// MUL VX, VY: Set VF, VX equal to VX multipled by VY where VF is the most significant byte of a 16bit word.
+//
+void Chip8::OP_9xy1() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+	uint8_t Vy = (opcode & 0x00F0u) >> 4u;
+}
+
+// DIV VX, VY: Set VX equal to VX divided by VY. VF is set to the remainder.
+//
+void Chip8::OP_9xy2() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+	uint8_t Vy = (opcode & 0x00F0u) >> 4u;
+
+	registers[Vx] = registers[Vx] / registers[Vy];
+	registers[cst::VF] = registers[Vx] % registers[Vy];
+}
+
+// BCD VX, VY: Let VX, VY be treated as a 16bit word with VX the most significant part. 
+// Convert that word to BCD and store the 5 digits at memory location I through I+4. I does not change.
+void Chip8::OP_9xy3() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+	uint8_t Vy = (opcode & 0x00F0u) >> 4u;
+
+	uint16_t value = (registers[Vx] << 8u) | registers[Vy];
+
+	// Ones-place
+	memory[index + 4] = value % 10;
+	value /= 10;
+
+	// Tens-place
+	memory[index + 3] = value % 10;
+	value /= 10;
+
+	// Hundreds-place
+	memory[index + 2] = value % 10;
+	value /= 10;
+
+	// Thousands-place
+	memory[index + 1] = value % 10;
+	value /= 10;
+
+	// Ten-thousands-place
+	memory[index] = value % 10;
+}
+
+// DISP VX: Display the value of VX on the COSMAC Elf hex display.
+//
+void Chip8::OP_Fx75_E() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+	// Display value of Vx in UI
+}
+
+// LD I, VX: Load I with the address of the font sprite of the ASCII value found in VX.
+//
+void Chip8::OP_Fx94() {
+	uint8_t Vx = (opcode & 0x0F00u) >> 8u;
+	index = registers[Vx];
 }
