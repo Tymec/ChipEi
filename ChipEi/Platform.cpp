@@ -1,20 +1,38 @@
 #include "Platform.h"
 
 Platform::Platform(char const* title, int windowWidth, int windowHeight, int textureWidth, int textureHeight) {
-	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-		std::cout << "Could not initialize SDL. SDL Error: " << SDL_GetError() << std::endl;
-	}
+	if ( SDL_Init(SDL_INIT_EVERYTHING) != 0 )
+		std::cout << "Error : " << SDL_GetError() << std::endl;
 
 	window = SDL_CreateWindow(title, 0, 0, windowWidth, windowHeight, SDL_WINDOW_SHOWN);
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, textureWidth, textureHeight);
+	GetAudioDevice();
 }
 
 Platform::~Platform() {
 	SDL_DestroyTexture(texture);
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
+	SDL_CloseAudio();
 	SDL_Quit();
+}
+
+// Get audio device
+void Platform::GetAudioDevice() {
+	SDL_AudioSpec want, have;
+
+	int sample_nr = 0;
+
+	SDL_memset(&want, 0, sizeof(want));
+	want.freq = SAMPLE_RATE;
+	want.format = AUDIO_F32;
+	want.channels = 1;
+	want.samples = 2048;
+	want.callback = audio_callback;
+	want.userdata = &sample_nr;
+
+	dev = SDL_OpenAudioDevice(NULL, 0, &want, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
 }
 
 // Update function for Platform class
@@ -81,4 +99,26 @@ bool Platform::ProcessInput(uint8_t* keys) {
 		}
 	}
 	return quit;
+}
+
+// Play buzzer tone
+void Platform::ProcessSound(bool play) {
+	if (play) {
+		SDL_PauseAudioDevice(dev, 0);
+		SDL_Delay(1000);
+		SDL_PauseAudioDevice(dev, 1);
+	}
+}
+
+// Audio callback
+void audio_callback(void* user_data, uint8_t* raw_buffer, int bytes) {
+	std::cout << "Sound Playing" << std::endl;
+	Sint16 *buffer = (Sint16*)raw_buffer;
+	int length = bytes / 2;
+	int &sample_nr(*(int*)user_data);
+
+	for(int i = 0; i < length; i++, sample_nr++) {
+        double time = (double)sample_nr / (double)SAMPLE_RATE;
+        buffer[i] = (Sint16)(AMPLITUDE * sin(2.0f * M_PI * 441.0f * time)); // render 441 HZ sine wave
+    }
 }
