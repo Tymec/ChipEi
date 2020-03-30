@@ -5,7 +5,14 @@ https://austinmorlan.com/posts/chip8_emulator/
 
 ---
 #### TODO:
-- Implement spdlog
-- Implement SuperChip-8
-- Implement Chip-8X
-- Implement Chip-8E
+- Fix draw function
+  - dxyn
+  - dxy0
+- Implement logging
+  - spdlog
+  - debugger
+- CPU's
+  - Implement SuperChip-8
+  - Implement Chip-8X
+  - Implement Chip-8E
+
