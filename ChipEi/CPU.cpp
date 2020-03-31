@@ -109,9 +109,9 @@ bool CPU::shouldClose() { return quit; }
 void CPU::ParseOpcodes() {
 	//std::cout << "Opcode: " << std::hex << opcode << std::endl;
 	
-	switch(opcode & 0xF000u) {
+	switch(opcode >> 12) {
 		// Opcodes starting with $0
-		case (0x0000):
+		case (0x0):
 			if ((opcode & 0x00F0u) == 0xB0) {
 				CPU::OP_00Bn(); // SuperChip-8
 				break;
@@ -145,35 +145,35 @@ void CPU::ParseOpcodes() {
 			}
 			break;
 		// Opcodes starting with $1
-		case (0x1000):
+		case (0x1):
 			CPU::OP_1nnn();
 			break;
 		// Opcodes starting with $2
-		case (0x2000):
+		case (0x2):
 			CPU::OP_2nnn();
 			break;
 		// Opcodes starting with $3
-		case (0x3000):
+		case (0x3):
 			CPU::OP_3xkk();
 			break;
 		// Opcodes starting with $4
-		case (0x4000):
+		case (0x4):
 			CPU::OP_4xkk();
 			break;
 		// Opcodes starting with $5
-		case (0x5000):
+		case (0x5):
 			CPU::OP_5xy0();
 			break;
 		// Opcodes starting with $6
-		case (0x6000):
+		case (0x6):
 			CPU::OP_6xkk();
 			break;
 		// Opcodes starting with $7
-		case (0x7000):
+		case (0x7):
 			CPU::OP_7xkk();
 			break;
 		// Opcodes starting with $8
-		case (0x8000):
+		case (0x8):
 			switch (opcode & 0x000F) {
 				case (0x0):
 					CPU::OP_8xy0();
@@ -205,23 +205,23 @@ void CPU::ParseOpcodes() {
 			}
 			break;
 		// Opcodes starting with $9
-		case (0x9000):
+		case (0x9):
 			CPU::OP_9xy0();
 			break;
 		// Opcodes starting with $A
-		case (0xA000):
+		case (0xA):
 			CPU::OP_Annn();
 			break;
 		// Opcodes starting with $B
-		case (0xB000):
+		case (0xB):
 			CPU::OP_Bnnn();
 			break;
 		// Opcodes starting with $C
-		case (0xC000):
+		case (0xC):
 			CPU::OP_Cxkk();
 			break;
 		// Opcodes starting with $D
-		case (0xD000):
+		case (0xD):
 			if ((opcode & 0x000Fu) == 0) {
 				CPU::OP_Dxy0();
 			} else {
@@ -229,7 +229,7 @@ void CPU::ParseOpcodes() {
 			}
 			break;
 		// Opcodes starting with $E
-		case (0xE000):
+		case (0xE):
 			if ((opcode & 0x000Fu) == 0x1) {
 				CPU::OP_ExA1();
 			} else if ((opcode & 0x000Fu) == 0xE) {
@@ -237,7 +237,7 @@ void CPU::ParseOpcodes() {
 			}
 			break;
 		// Opcodes starting with $F
-		case (0xF000):
+		case (0xF):
 			switch(opcode & 0x00FFu) {
 				case (0x07):
 					CPU::OP_Fx07();

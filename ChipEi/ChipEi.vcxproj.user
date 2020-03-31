@@ -3,11 +3,11 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LocalDebuggerCommand>$(TargetPath)</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>10 1 "F:\Git Repos\chipei\Debug\PONG"</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>10 5 "F:\Git Repos\chipei\roms\c8games\CONNECT4"</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LocalDebuggerCommand>$(TargetPath)</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>10 1 "F:\Git Repos\chipei\Debug\PONG"</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>10 5 "F:\Git Repos\chipei\roms\c8games\CONNECT4"</LocalDebuggerCommandArguments>
   </PropertyGroup>
 </Project>

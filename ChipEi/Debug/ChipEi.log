@@ -5,4 +5,7 @@ F:\Git Repos\chipei\ChipEi\CPU.cpp(34,79): warning C4244: 'argument': conversion
               _Rep=std::chrono::system_clock::rep
           ]
 F:\Git Repos\chipei\ChipEi\CPU.cpp(58,27): warning C4244: 'initializing': conversion from 'std::streamoff' to 'unsigned int', possible loss of data
+  main.cpp
+  Generating Code...
+F:\Git Repos\chipei\ChipEi\main.cpp(51): warning C4715: 'SDL_main': not all control paths return a value
   ChipEi.vcxproj -> F:\Git Repos\chipei\Debug\ChipEi.exe
