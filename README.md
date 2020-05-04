@@ -1,6 +1,6 @@
 ChipEI
 ===
-![Example Image](https://austinmorlan.com/posts/chip8_emulator/media/test_01.png)
+![Example Image](https://upload.wikimedia.org/wikipedia/commons/9/9e/PONG_CHIP8.png)
 
 Chip8 Emulator made using Austin Morlan's tutorial:
 https://austinmorlan.com/posts/chip8_emulator/
