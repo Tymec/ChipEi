@@ -1,4 +1,4 @@
-ChipEI
+ChipEi
 ===
 ![Example Image](https://upload.wikimedia.org/wikipedia/commons/9/9e/PONG_CHIP8.png)
 
